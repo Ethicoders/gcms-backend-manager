@@ -1,0 +1,1 @@
+{"version":3,"file":"query.js","sourceRoot":"","sources":["../../../../src/modules/plugin/resolvers/query.ts"],"names":[],"mappings":";;AACA,gDAAyC;AAEzC,kBAAe;IACb,KAAK,EAAE;QACL,UAAU,EAAE,CAAC,IAAI,EAAE,IAAI,EAAE,EAAE,QAAQ,EAAiB,EAAE,EAAE,CACtD,QAAQ,CAAC,GAAG,CAAC,gBAAM,CAAC,CAAC,UAAU,EAAE;KACpC;CACF,CAAC"}

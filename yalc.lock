@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "packages": {
+    "graphql-cms-back-sdk": {
+      "signature": "527a4b85c26dcf68b78764413fe7e8be",
+      "file": true
+    }
+  }
+}

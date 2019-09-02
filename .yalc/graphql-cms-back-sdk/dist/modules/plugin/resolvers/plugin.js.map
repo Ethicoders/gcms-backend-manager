@@ -1,0 +1,1 @@
+{"version":3,"file":"plugin.js","sourceRoot":"","sources":["../../../../src/modules/plugin/resolvers/plugin.ts"],"names":[],"mappings":";;AAAA,kBAAe;IACb,MAAM,EAAE;QACN,IAAI,EAAE,MAAM,CAAC,EAAE,CAAC,MAAM,CAAC,IAAI;QAC3B,SAAS,EAAE,MAAM,CAAC,EAAE,CAAC,MAAM,CAAC,SAAS;KACtC;CACF,CAAC"}
