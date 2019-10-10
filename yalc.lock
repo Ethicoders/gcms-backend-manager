@@ -1,8 +1,12 @@
 {
   "version": "v1",
   "packages": {
-    "graphql-cms-back-sdk": {
-      "signature": "527a4b85c26dcf68b78764413fe7e8be",
+    "gcms-backend-sdk": {
+      "signature": "62d25e1145b963acc533448d2311cd7f",
+      "file": true
+    },
+    "gcms-blog": {
+      "signature": "ac39fa54a2ffbde2398a72f94e5603f3",
       "file": true
     }
   }

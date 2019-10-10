@@ -61,6 +61,14 @@
                   >
                     <q-item-section>{{ prop.node.started ? 'Stop' : 'Start' }}</q-item-section>
                   </q-item>
+                  <q-item
+                    clickable
+                    v-close-popup
+                    v-if="prop.node.component === 'project-item' && prop.node.started"
+                    @click="restartProject(prop)"
+                  >
+                    <q-item-section>{{ 'Restart' }}</q-item-section>
+                  </q-item>
                   <q-separator v-if="prop.node.component !== 'welcomer'" />
                   <q-item
                     class="bg-danger"
@@ -118,7 +126,7 @@ import Welcomer from './Welcomer.vue';
 
 import * as uuidv4 from 'uuid/v4';
 
-import { bootstrap } from 'graphql-cms-back-sdk';
+import { bootstrap } from 'gcms-backend-sdk';
 
 interface TreeNode {
   key: string;
@@ -237,6 +245,13 @@ export default class Projects extends Vue {
     ipcRenderer.once('stoppedProject:' + prop.key, () => {
       this.loadingStates.splice(this.loadingStates.indexOf(prop.key), 1);
       this.$set(prop.node, 'started', false);
+    });
+  }
+
+  private restartProject(prop: any) {
+    this.stopProject(prop);
+    ipcRenderer.once('stoppedProject:' + prop.key, () => {
+      this.startProject(prop);
     });
   }
 

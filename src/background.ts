@@ -7,10 +7,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Project } from '@/interfaces/project';
 
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import * as rimraf from 'rimraf';
 import * as pidusage from 'pidusage';
-import * as ipc from 'node-ipc';
+import { EventEmitter } from 'events';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -22,6 +22,33 @@ let win: BrowserWindow | null;
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true } },
 ]);
+
+const projectsPath = path.join(app.getPath('userData'), 'projects');
+if (!fs.existsSync(projectsPath)) {
+  fs.mkdirSync(projectsPath);
+}
+
+const pluginsDirectoryPath = path.join(app.getPath('userData'), 'plugins');
+if (!fs.existsSync(pluginsDirectoryPath)) {
+  fs.mkdirSync(pluginsDirectoryPath);
+  fs.writeFileSync(
+    path.join(pluginsDirectoryPath, 'package.json'),
+    '{"name": "backend-manager"}',
+  );
+  const worker = exec('yalc add gcms-backend-sdk && yarn', {
+    cwd: pluginsDirectoryPath,
+  });
+  worker.stderr.on('data', (data) => {
+    console.log(data);
+  });
+  worker.on('exit', () => {
+    console.log('Done initializing');
+  });
+  fs.writeFileSync(
+    path.join(pluginsDirectoryPath, 'index.js'),
+    `module.exports = pluginName => require('gcms-' + pluginName).default;`,
+  );
+}
 
 function createWindow() {
   // Create the browser window.
@@ -95,11 +122,6 @@ ipcMain.on('updateProjectsCache', (event, data) => {
 });
 
 ipcMain.on('createProject', (event, project: Project) => {
-  const projectsPath = path.join(app.getPath('userData'), 'projects');
-  if (!fs.existsSync(projectsPath)) {
-    fs.mkdirSync(projectsPath);
-  }
-
   const projectDirectoryPath = getProjectDirectoryPath(project);
 
   fs.mkdirSync(projectDirectoryPath);
@@ -149,23 +171,62 @@ ipcMain.on('getProjects', (event) => {
   event.reply('retrievedProjects', JSON.stringify(tree));
 });
 
+const listeners: { [key: string]: EventEmitter } = {};
+
+const backendPath =
+  'C:\\Users\\valen\\Documents\\projects\\gcms\\app\\gql-cms-demo-win32-x64';
+
 const startProject = (project: Project) => {
-  const projectsPath = path.join(app.getPath('userData'), 'projects');
+  console.log(`Spawning project ${project.name}`);
+
+  fs.writeFileSync(
+    path.join(projectsPath, project.key, 'gcms.json'),
+    JSON.stringify(
+      {
+        app: {
+          graphqlRoot: '/',
+          port: project.port,
+          graphiql: true,
+        },
+        plugin: {
+          pluginsFilePath: path.join(projectsPath, project.key, 'plugins.json'),
+          pluginsDirectory: pluginsDirectoryPath,
+        },
+        database: {
+          url: 'mongodb://localhost:27017',
+          databaseName: project.databaseName,
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
   instances[project.key] = spawn(
     // TODO: provide a dynamic path based on the location the OS related binary will be downloaded
-    'C:\\Users\\valen\\Documents\\projects\\gcms\\app\\gql-cms-demo-win32-x64\\gql-cms-demo.exe',
-    [
-      'gcms-backend-manager',
-      project.port,
-      projectsPath + '/' + project.key + '/plugins.json',
-      project.databaseName,
-      project.key,
-    ],
+    `${backendPath}\\gql-cms-demo.exe`,
+    [path.join(projectsPath, project.key, '/gcms.json')],
+    { stdio: ['pipe', null, null, 'ipc'] },
   );
+
+  listeners[project.key] = new EventEmitter();
+  listeners[project.key].on('ready', () => {
+    (win as BrowserWindow).webContents.send('startedProject:' + project.key);
+  });
+
+  const restartProject = () => {
+    console.log('requesting to restart');
+    instances[project.key].kill();
+    startProject(project);
+  };
+  listeners[project.key].on('trigger:restart', restartProject);
+
+  instances[project.key].on('message', (event) => {
+    listeners[project.key].emit(event.eventType);
+  });
 };
 
 ipcMain.on('startProject', (event, project: Project) => {
-
   startProject(project);
   setInterval(() => {
     pidusage(instances[project.key].pid, (err: any, stats: any) => {
@@ -203,27 +264,9 @@ ipcMain.on('stopProject', (event: any, project: Project) => {
 });
 
 ipcMain.on('deleteProject', (event: any, project: Project) => {
-  const projectsPath = path.join(app.getPath('userData'), 'projects');
-
-  rimraf(projectsPath + '/' + project.key, () => {
+  rimraf(path.join(projectsPath, project.key), () => {
     event.reply('deletionDone');
   });
-});
-
-ipc.config.id = 'gcms-backend-manager';
-ipc.config.retry = 1500;
-
-ipc.serve(() => {
-  ipc.server.on('ready', (data: any, socket: any) => {
-    ipc.log('Instance is ready!', data);
-    (win as BrowserWindow).webContents.send('startedProject:' + data);
-  });
-  ipc.server.on(
-    'socket.disconnected',
-    (socket: any, destroyedSocketID: any) => {
-      ipc.log('client ' + destroyedSocketID + ' has disconnected!');
-    },
-  );
 });
 
 // This method will be called when Electron has finished
@@ -243,6 +286,6 @@ app.on('ready', async () => {
     //   console.error('Vue Devtools failed to install:', e.toString());
     // }
   }
-  ipc.server.start();
+
   createWindow();
 });
